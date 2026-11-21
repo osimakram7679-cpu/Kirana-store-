@@ -1,0 +1,6 @@
+{
+  "name": "Daily Goods",
+  "description": "General store shopping app with full product catalog, cart, order tracking, and admin inventory & order management panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

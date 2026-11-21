@@ -1,0 +1,287 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email.lower() == 'osimakram90644@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- ENTITY VALIDATION HELPERS ---
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.email is string && data.email.size() <= 120 &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.loyaltyPoints is int && data.loyaltyPoints >= 0 && data.loyaltyPoints <= 10000000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAdminMember(data) {
+      return data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() <= 120 &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 60 &&
+             data.addedBy is string && data.addedBy.size() >= 1 && data.addedBy.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidCategory(category) {
+      return category in ['Pantry', 'Produce', 'Dairy & Bakery', 'Beverages', 'Home & Care', 'Snacks', 'Hardware & Utility'];
+    }
+
+    function isValidProduct(data) {
+      return data.sku is string && data.sku.size() >= 2 && data.sku.size() <= 32 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.description is string && data.description.size() <= 500 &&
+             isValidCategory(data.category) &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24 &&
+             data.priceCents is int && data.priceCents >= 1 && data.priceCents <= 10000000 &&
+             (!('compareAtPriceCents' in data) || (data.compareAtPriceCents is int && data.compareAtPriceCents >= 0 && data.compareAtPriceCents <= 10000000)) &&
+             data.stockCount is int && data.stockCount >= 0 && data.stockCount <= 100000 &&
+             data.lowStockThreshold is int && data.lowStockThreshold >= 0 && data.lowStockThreshold <= 1000 &&
+             data.featured is bool &&
+             data.active is bool &&
+             data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 40 &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500)) &&
+             data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCartItem(data) {
+      return data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 80 &&
+             data.sku is string && data.sku.size() >= 1 && data.sku.size() <= 32 &&
+             data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 24 &&
+             data.iconKey is string && data.iconKey.size() >= 1 && data.iconKey.size() <= 40 &&
+             data.unitPriceCents is int && data.unitPriceCents >= 1 && data.unitPriceCents <= 10000000 &&
+             data.quantity is int && data.quantity >= 1 && data.quantity <= 99 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidOrderStatus(status) {
+      return status in ['PENDING', 'PACKING', 'READY', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+    }
+
+    function isValidFulfillmentType(fulfillmentType) {
+      return fulfillmentType in ['DELIVERY', 'PICKUP'];
+    }
+
+    function isValidOrder(data) {
+      return data.orderNumber is string && data.orderNumber.size() >= 4 && data.orderNumber.size() <= 24 &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.customerName is string && data.customerName.size() >= 1 && data.customerName.size() <= 80 &&
+             data.customerEmail is string && data.customerEmail.size() <= 120 &&
+             data.deliveryAddress is string && data.deliveryAddress.size() >= 2 && data.deliveryAddress.size() <= 200 &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+             isValidFulfillmentType(data.fulfillmentType) &&
+             isValidOrderStatus(data.status) &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 30 && data.items[0] is map &&
+             data.subtotalCents is int && data.subtotalCents >= 0 && data.subtotalCents <= 100000000 &&
+             data.deliveryFeeCents is int && data.deliveryFeeCents >= 0 && data.deliveryFeeCents <= 1000000 &&
+             data.taxCents is int && data.taxCents >= 0 && data.taxCents <= 10000000 &&
+             data.totalCents is int && data.totalCents >= 1 && data.totalCents <= 120000000 &&
+             data.itemCount is int && data.itemCount >= 1 && data.itemCount <= 999 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidStoreSettings(data) {
+      return data.storeName is string && data.storeName.size() >= 2 && data.storeName.size() <= 60 &&
+             data.announcement is string && data.announcement.size() <= 160 &&
+             data.storeHours is string && data.storeHours.size() >= 2 && data.storeHours.size() <= 80 &&
+             data.storeOpen is bool &&
+             data.taxRateBps is int && data.taxRateBps >= 0 && data.taxRateBps <= 3000 &&
+             data.deliveryFeeCents is int && data.deliveryFeeCents >= 0 && data.deliveryFeeCents <= 100000 &&
+             data.freeDeliveryThresholdCents is int && data.freeDeliveryThresholdCents >= 0 && data.freeDeliveryThresholdCents <= 1000000 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. User Profiles (PII isolated to owner or admin)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().loyaltyPoints == 0 &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'loyaltyPoints', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'photoUrl', 'loyaltyPoints', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() || (
+                           isOwner(userId) &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoUrl', 'loyaltyPoints', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      // 1a. Persistent Shopping Cart Subcollection
+      match /cart/{productId} {
+        allow get: if isOwner(userId) && isValidId(productId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(productId) &&
+                         incoming().keys().hasAll(['productName', 'sku', 'unit', 'iconKey', 'unitPriceCents', 'quantity', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['productName', 'sku', 'unit', 'iconKey', 'unitPriceCents', 'quantity', 'createdAt', 'updatedAt']) &&
+                         isValidCartItem(incoming()) &&
+                         exists(/databases/$(database)/documents/products/$(productId));
+
+        allow update: if isOwner(userId) &&
+                         isValidId(productId) &&
+                         isValidCartItem(incoming()) &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['productName', 'sku', 'unit', 'iconKey', 'unitPriceCents', 'quantity', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(productId);
+      }
+    }
+
+    // 2. Trusted Admin Registry (Self-assignment strictly prevented)
+    match /admins/{adminUid} {
+      allow get: if isSignedIn() && isValidId(adminUid) && (request.auth.uid == adminUid || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isAdmin() &&
+                       isValidId(adminUid) &&
+                       incoming().uid == adminUid &&
+                       incoming().addedBy == request.auth.uid &&
+                       incoming().keys().hasAll(['uid', 'email', 'label', 'addedBy', 'createdAt']) &&
+                       incoming().keys().hasOnly(['uid', 'email', 'label', 'addedBy', 'createdAt']) &&
+                       isValidAdminMember(incoming());
+
+      allow update: if isAdmin() &&
+                       isValidId(adminUid) &&
+                       isValidAdminMember(incoming()) &&
+                       incoming().uid == existing().uid &&
+                       incoming().addedBy == existing().addedBy &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['email', 'label']);
+
+      allow delete: if isAdmin() && isValidId(adminUid);
+    }
+
+    // 3. Store Catalog Products (Public active read for signed-in users; full CRUD for admin; checkout stock decrement)
+    match /products/{productId} {
+      allow get: if isSignedIn() && isValidId(productId) && (existing().active == true || isAdmin());
+      allow list: if isSignedIn() && (resource.data.active == true || isAdmin());
+
+      allow create: if isAdmin() &&
+                       isValidId(productId) &&
+                       incoming().createdBy == request.auth.uid &&
+                       incoming().keys().hasAll(['sku', 'name', 'description', 'category', 'unit', 'priceCents', 'stockCount', 'lowStockThreshold', 'featured', 'active', 'iconKey', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['sku', 'name', 'description', 'category', 'unit', 'priceCents', 'compareAtPriceCents', 'stockCount', 'lowStockThreshold', 'featured', 'active', 'iconKey', 'imageUrl', 'createdBy', 'createdAt', 'updatedAt']) &&
+                       isValidProduct(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(productId) &&
+                       isValidProduct(incoming()) &&
+                       incoming().createdBy == existing().createdBy &&
+                       incoming().createdAt == existing().createdAt && (
+                         (isAdmin() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['sku', 'name', 'description', 'category', 'unit', 'priceCents', 'compareAtPriceCents', 'stockCount', 'lowStockThreshold', 'featured', 'active', 'iconKey', 'imageUrl', 'updatedAt'])) ||
+                         (existing().active == true &&
+                          incoming().stockCount >= 0 &&
+                          incoming().stockCount < existing().stockCount &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['stockCount', 'updatedAt']))
+                       );
+
+      allow delete: if isAdmin() && isValidId(productId);
+    }
+
+    // 4. Customer Orders & Admin Fulfillment
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && isValidId(orderId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+                       isValidId(orderId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().status == 'PENDING' &&
+                       incoming().keys().hasAll(['orderNumber', 'userId', 'customerName', 'customerEmail', 'deliveryAddress', 'fulfillmentType', 'status', 'items', 'subtotalCents', 'deliveryFeeCents', 'taxCents', 'totalCents', 'itemCount', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['orderNumber', 'userId', 'customerName', 'customerEmail', 'deliveryAddress', 'notes', 'fulfillmentType', 'status', 'items', 'subtotalCents', 'deliveryFeeCents', 'taxCents', 'totalCents', 'itemCount', 'createdAt', 'updatedAt']) &&
+                       isValidOrder(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(orderId) &&
+                       isValidOrder(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().orderNumber == existing().orderNumber && (
+                         (isAdmin() &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'updatedAt'])) ||
+                         (existing().userId == request.auth.uid &&
+                          existing().status == 'PENDING' &&
+                          incoming().status == 'CANCELLED' &&
+                          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+                       );
+
+      allow delete: if isAdmin() && isValidId(orderId);
+    }
+
+    // 5. Store Settings (Single 'config' document)
+    match /store_settings/{configId} {
+      allow get: if isSignedIn() && configId == 'config';
+      allow list: if false;
+
+      allow create: if isAdmin() &&
+                       configId == 'config' &&
+                       incoming().keys().hasAll(['storeName', 'announcement', 'storeHours', 'storeOpen', 'taxRateBps', 'deliveryFeeCents', 'freeDeliveryThresholdCents', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['storeName', 'announcement', 'storeHours', 'storeOpen', 'taxRateBps', 'deliveryFeeCents', 'freeDeliveryThresholdCents', 'updatedAt']) &&
+                       isValidStoreSettings(incoming());
+
+      allow update: if isAdmin() &&
+                       configId == 'config' &&
+                       isValidStoreSettings(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['storeName', 'announcement', 'storeHours', 'storeOpen', 'taxRateBps', 'deliveryFeeCents', 'freeDeliveryThresholdCents', 'updatedAt']);
+
+      allow delete: if false;
+    }
+  }
+}

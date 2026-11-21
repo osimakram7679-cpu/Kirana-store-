@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Daily Goods</string>
+    <string name="tagline">Neighborhood General Store</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="sign_out">Sign out</string>
+    <string name="tab_storefront">Store</string>
+    <string name="tab_catalog">All Products</string>
+    <string name="tab_cart">Cart</string>
+    <string name="tab_orders">Orders</string>
+    <string name="tab_admin">Control</string>
+    <string name="empty_catalog_title">Shelves are being stocked</string>
+    <string name="empty_catalog_subtitle">Check back soon or sign in as a store admin to add products.</string>
+    <string name="empty_cart_title">Your market bag is empty</string>
+    <string name="empty_cart_subtitle">Browse our fresh produce, pantry staples, and home goods to start an order.</string>
+    <string name="empty_orders_title">No orders placed yet</string>
+    <string name="empty_orders_subtitle">Your order receipts and live fulfillment updates will appear here.</string>
+</resources>

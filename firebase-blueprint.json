@@ -1,0 +1,146 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Shopper account profile and loyalty points balance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the user." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "email": { "type": "string", "description": "User email address." },
+        "photoUrl": { "type": "string", "description": "Optional avatar URL." },
+        "loyaltyPoints": { "type": "integer", "description": "Earned store loyalty points." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["userId", "displayName", "email", "loyaltyPoints", "createdAt", "updatedAt"]
+    },
+    "AdminMember": {
+      "title": "AdminMember",
+      "description": "Authorized store administrator registry entry.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID of the admin." },
+        "email": { "type": "string", "description": "Admin email address." },
+        "label": { "type": "string", "description": "Admin role label." },
+        "addedBy": { "type": "string", "description": "UID of admin who granted access." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." }
+      },
+      "required": ["uid", "email", "label", "addedBy", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "General store product SKU with inventory and pricing.",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "description": "Unique product SKU code." },
+        "name": { "type": "string", "description": "Product title." },
+        "description": { "type": "string", "description": "Product description." },
+        "category": {
+          "type": "string",
+          "enum": ["Pantry", "Produce", "Dairy & Bakery", "Beverages", "Home & Care", "Snacks", "Hardware & Utility"],
+          "description": "Store department category."
+        },
+        "unit": { "type": "string", "description": "Package size or unit label." },
+        "priceCents": { "type": "integer", "description": "Current price in cents." },
+        "compareAtPriceCents": { "type": "integer", "description": "Optional original price in cents for discounts." },
+        "stockCount": { "type": "integer", "description": "Current inventory count." },
+        "lowStockThreshold": { "type": "integer", "description": "Low-stock alert threshold." },
+        "featured": { "type": "boolean", "description": "Whether product appears in storefront specials." },
+        "active": { "type": "boolean", "description": "Whether product is visible in storefront catalog." },
+        "iconKey": { "type": "string", "description": "Curated product artwork key." },
+        "imageUrl": { "type": "string", "description": "Optional external image URL." },
+        "createdBy": { "type": "string", "description": "UID of admin who created the product." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["sku", "name", "description", "category", "unit", "priceCents", "stockCount", "lowStockThreshold", "featured", "active", "iconKey", "createdBy", "createdAt", "updatedAt"]
+    },
+    "CartItem": {
+      "title": "CartItem",
+      "description": "Item inside a shopper's persistent cart.",
+      "type": "object",
+      "properties": {
+        "productName": { "type": "string", "description": "Snapshot of product name." },
+        "sku": { "type": "string", "description": "Product SKU." },
+        "unit": { "type": "string", "description": "Product unit." },
+        "iconKey": { "type": "string", "description": "Product artwork key." },
+        "unitPriceCents": { "type": "integer", "description": "Unit price in cents." },
+        "quantity": { "type": "integer", "description": "Quantity in cart." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["productName", "sku", "unit", "iconKey", "unitPriceCents", "quantity", "createdAt", "updatedAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer order with line items and fulfillment lifecycle.",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "string", "description": "Human-friendly order code." },
+        "userId": { "type": "string", "description": "Customer Firebase Auth UID." },
+        "customerName": { "type": "string", "description": "Customer display name." },
+        "customerEmail": { "type": "string", "description": "Customer email." },
+        "deliveryAddress": { "type": "string", "description": "Delivery street address or pickup note." },
+        "notes": { "type": "string", "description": "Optional order or fulfillment note." },
+        "fulfillmentType": { "type": "string", "enum": ["DELIVERY", "PICKUP"], "description": "Order fulfillment method." },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "PACKING", "READY", "SHIPPED", "DELIVERED", "CANCELLED"],
+          "description": "Current order fulfillment status."
+        },
+        "items": { "type": "array", "description": "Bounded list of ordered line item maps." },
+        "subtotalCents": { "type": "integer", "description": "Order subtotal in cents." },
+        "deliveryFeeCents": { "type": "integer", "description": "Delivery fee in cents." },
+        "taxCents": { "type": "integer", "description": "Estimated tax in cents." },
+        "totalCents": { "type": "integer", "description": "Total charged in cents." },
+        "itemCount": { "type": "integer", "description": "Total unit count across line items." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["orderNumber", "userId", "customerName", "customerEmail", "deliveryAddress", "fulfillmentType", "status", "items", "subtotalCents", "deliveryFeeCents", "taxCents", "totalCents", "itemCount", "createdAt", "updatedAt"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Storefront configuration managed by admins.",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string", "description": "Store display title." },
+        "announcement": { "type": "string", "description": "Storefront banner announcement." },
+        "storeHours": { "type": "string", "description": "Store operating hours." },
+        "storeOpen": { "type": "boolean", "description": "Whether store is accepting orders." },
+        "taxRateBps": { "type": "integer", "description": "Tax rate in basis points (e.g. 825 = 8.25%)." },
+        "deliveryFeeCents": { "type": "integer", "description": "Standard delivery fee in cents." },
+        "freeDeliveryThresholdCents": { "type": "integer", "description": "Minimum subtotal for free delivery in cents." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update." }
+      },
+      "required": ["storeName", "announcement", "storeHours", "storeOpen", "taxRateBps", "deliveryFeeCents", "freeDeliveryThresholdCents", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Shopper user profiles isolated by UID and readable by store admins."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminMember" },
+      "description": "Trusted admin role registry."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "General store product catalog."
+    },
+    "/users/{userId}/cart/{productId}": {
+      "schema": { "$ref": "#/entities/CartItem" },
+      "description": "User-scoped persistent shopping cart."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders and admin fulfillment queue."
+    },
+    "/store_settings/{configId}": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Store configuration document (config)."
+    }
+  }
+}
